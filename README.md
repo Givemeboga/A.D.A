@@ -1,118 +1,159 @@
-# A.D.A — Agentic Dialogue Assistant
+<div align="center">
 
-Ada is a local-first, voice-first personal assistant that runs on two laptops at home. You say a wake phrase, talk normally, and Ada answers out loud. She can use a small set of tools (timers, reminders, notes, web search), and nothing that changes anything runs without your spoken or on-screen "yes".
+<img src="docs/assets/orb-hero.png" alt="Ada's orb, thinking" width="320">
 
-No cloud model, no subscription, no audio leaves the house.
+# A.D.A
 
-> **Status:** Phase 0, setup. The voice loop does not exist yet. See the [roadmap](#roadmap).
+**Agentic Dialogue Assistant**
 
-## How it works
+A personal voice assistant that listens, thinks and acts.<br>
+Private, local, and built with security at its core.
 
+![status](https://img.shields.io/badge/status-phase%200%20%C2%B7%20setup-55e6e0?style=flat-square&labelColor=05090c)
+![license](https://img.shields.io/badge/license-MIT-52747a?style=flat-square&labelColor=05090c)
+![python](https://img.shields.io/badge/python-3.12-52747a?style=flat-square&labelColor=05090c)
+![cloud](https://img.shields.io/badge/cloud-none-52747a?style=flat-square&labelColor=05090c)
+
+</div>
+
+---
+
+## Meet Ada
+
+You say her name, talk normally, and she answers out loud. She can set reminders, take notes, look things up and wake you in the morning, and she never changes anything without your "yes".
+
+Everything runs on two laptops at home. No subscription, no cloud model, and no audio ever leaves the house.
+
+| | |
+| --- | --- |
+| **Voice-first** | Wake her with a phrase, speak naturally, interrupt her when you need to. |
+| **Local** | Speech, language model and memory all run on your own machines. |
+| **Agentic** | She uses tools to get things done, not just to chat. |
+| **Secure by design** | Safety rules are enforced in code, not left to the model's judgement. |
+
+## Her face
+
+Ada shows what she is doing through a living particle orb. Each state is a different way information moves through her: inward while she listens, back and forth while she thinks, outward while she speaks.
+
+<p align="center"><img src="docs/assets/orb-states.png" alt="The six orb states: asleep, listening, thinking, speaking, confirming, error" width="100%"></p>
+
+Orange appears only when she is waiting for your approval, red only when something has failed. Open [`hud/orb.html`](hud/orb.html) in a browser to see it live; keys `1`–`6` switch state.
+
+## How she works
+
+```mermaid
+flowchart LR
+    you(["You speak"]) --> wake
+    subgraph hub["Hub · always-on laptop"]
+        wake["Wake word"] --> loop["Voice loop"]
+        loop --> voice["Voice"]
+        loop <--> tools["Tools + memory"]
+        loop -.-> orb["Orb"]
+    end
+    subgraph gpu["GPU node · second laptop"]
+        stt["Speech-to-text"]
+        llm["Language model"]
+    end
+    loop <-- audio · text --> stt
+    loop <-- prompt · reply --> llm
+    voice --> ans(["Ada answers"])
+    orb -. alerts · remote .-> phone["Phone"]
 ```
-                     ┌──────────────────────── ThinkPad E15 · Hub (always on) ───────────────────────┐
-  you ── mic ──────▶ │  wake word + VAD  ─▶  voice loop (Pipecat)  ─▶  voice (Kokoro)  ─▶  speaker   │ ──▶ you
-                     │                          │        ▲                                            │
-                     │       tools + memory ◀───┤        │            HUD server ─▶ 3D orb (browser)  │
-                     └──────────────────────────┼────────┼──────────────────────┬────────────────────┘
-                                   audio → text │        │ prompt → reply       │ alerts · remote
-                     ┌──────────────────────────▼────────┴──────┐        ┌──────▼──────────┐
-                     │  Legion Pro 5 · GPU node                 │        │  Android phone  │
-                     │  faster-whisper  ·  Ollama + qwen3:8b    │        │  ntfy · HUD app │
-                     └──────────────────────────────────────────┘        └─────────────────┘
-```
 
-| Part | Runs on | Choice (v1) |
-| --- | --- | --- |
-| Wake word | Hub | openWakeWord, custom phrase |
-| Voice activity + turn taking | Hub | Silero VAD, Smart Turn |
-| Voice loop | Hub | Pipecat |
-| Speech-to-text | GPU node | faster-whisper `distil-large-v3`, English |
-| Language model | GPU node | Ollama, `qwen3:8b` (4-bit, 8 GB VRAM) |
-| Text-to-speech | Hub | Kokoro, one English voice |
-| Tools | Hub | FastMCP over stdio, strict allowlist |
-| Memory | Hub | SQLite + Chroma |
-| Scheduler | Hub | APScheduler 3.x, SQLite job store |
-| HUD | Hub → browser | FastAPI + WebSocket + Three.js orb |
-| Phone alerts | Hub → phone | self-hosted ntfy over Tailscale |
+The **Hub** listens for her name, manages the conversation and speaks the reply. The **GPU node** turns speech into text and runs the language model. Your **phone** receives alarms and works as a remote.
 
-More detail: [docs/architecture.md](docs/architecture.md) · every choice and why: [docs/decisions.md](docs/decisions.md).
+<details>
+<summary><b>The stack</b></summary>
 
-## The orb
+| Part | Choice |
+| --- | --- |
+| Wake word | openWakeWord |
+| Voice activity, turn taking | Silero VAD, Smart Turn |
+| Voice loop | Pipecat |
+| Speech-to-text | faster-whisper (`distil-large-v3`, English) |
+| Language model | Ollama with `qwen3:8b` |
+| Text-to-speech | Kokoro |
+| Tools | FastMCP, strict allowlist |
+| Memory | SQLite + Chroma |
+| Scheduler | APScheduler |
+| HUD | FastAPI, WebSocket, Three.js |
+| Phone alerts | self-hosted ntfy over Tailscale |
 
-Ada's face is a 3D particle orb with six states — asleep, listening, thinking, speaking, confirming, error — each defined by which way information moves through it. Open [`hud/orb.html`](hud/orb.html) in a browser to see it; keys `1`–`6` switch state.
+Every choice and the reason behind it: [docs/decisions.md](docs/decisions.md) · Full architecture: [docs/architecture.md](docs/architecture.md)
 
-## Security model
+</details>
 
-Ada is built by someone on an offensive-security track, so the rules live in code, not in the prompt:
+## Security
 
-1. **Allowlist only.** Ada can call the tools on the list and nothing else. No shell, no payments, no sending messages in v1.
-2. **Confirmation in code.** Any tool that changes something waits for an explicit yes.
-3. **Untrusted content is data.** Web pages and notes never become instructions to the planner.
-4. **Fixed targets.** Alarms go only to the owner's phone, set in local config, never chosen by the model.
-5. **Append-only audit log** of every tool call.
-6. **Nothing exposed to the internet.** Services listen on the LAN or Tailscale only.
+Ada is built with an attacker's mindset. The model proposes; the code decides.
 
-Full rules and threat model: [docs/security.md](docs/security.md). Found a problem? See [SECURITY.md](SECURITY.md).
+- She can only use tools on an **allowlist**. No shell, no payments, no sending messages.
+- Anything that changes something **waits for your confirmation**. Silence means no.
+- Web pages and notes are treated as **data, never as instructions**.
+- Every tool call goes into an **append-only audit log**.
+- Nothing is exposed to the internet.
 
-## Repository guardrails
+This public repository is guarded too: a gitleaks pre-commit hook, a CI secret scan and GitHub push protection keep keys, phone numbers and personal data out of git.
 
-This repo is public from the first commit, so secrets and personal data are kept out mechanically:
+Threat model and full rules: [docs/security.md](docs/security.md) · Reporting a vulnerability: [SECURITY.md](SECURITY.md)
 
-- Personal values (phone number, IPs, ntfy topic, keys) live in `config/config.local.toml`, which git ignores. The committed [`config/config.example.toml`](config/config.example.toml) holds placeholders only.
-- A **gitleaks** pre-commit hook blocks any commit that contains a secret, including a phone number or a Tailscale key ([.gitleaks.toml](.gitleaks.toml)).
-- The same scan runs in GitHub Actions on every push and pull request.
-- GitHub secret scanning with push protection is turned on.
-- `.gitignore` excludes models, recordings, databases, logs and `.env` files.
+## Roadmap
 
-## Getting started (Phase 0)
+- [ ] **Phase 0 · Setup** — repository, guardrails, machines talking *(in progress)*
+- [ ] **Phase 1 · Parts** — each component proven on its own
+- [ ] **Phase 2 · First words** — wake, listen, think, answer out loud
+- [ ] **Phase 3 · Face** — the orb follows Ada's real state
+- [ ] **Phase 4 · Hands** — tools, confirmation and audit log
+- [ ] **Phase 5 · Memory** — remembers what you tell her, forgets on request
+- [ ] **Phase 6 · Her name** — custom wake phrase, natural interruptions
+- [ ] **Phase 7 · Reach** — phone alarms and remote
+- [ ] **Phase 8 · v1** — hardening, prompt-injection defense, release
 
-Requirements: Python 3.12, [uv](https://docs.astral.sh/uv/), Git, and Ollama on the GPU node.
+Later: French, calendar and email, Arabic, vision.
+
+<details>
+<summary><b>Getting started</b></summary>
+
+Requirements: Python 3.12, Git, and [Ollama](https://ollama.com) on the GPU node.
 
 ```bash
 git clone https://github.com/Givemeboga/A.D.A.git
 cd A.D.A
 
-# 1. Turn on the guardrails before your first commit
-uv tool install pre-commit
+# turn on the guardrails before your first commit
+pip install pre-commit
 pre-commit install
 
-# 2. Create your private config
-cp config/config.example.toml config/config.local.toml   # Windows: copy config\config.example.toml config\config.local.toml
-#    then edit config.local.toml: set gpu_node.host to the Legion's IP
+# your private config (ignored by git)
+cp config/config.example.toml config/config.local.toml
+# set gpu_node.host to the GPU node's address
 
-# 3. On the GPU node
+# on the GPU node
 ollama pull qwen3:8b
 
-# 4. Phase 0 exit test, run from the Hub
+# Phase 0 check, from the Hub
 python tests/smoke/check_ollama.py
 ```
 
-## Roadmap
+</details>
 
-| Phase | Goal | Exit test |
-| --- | --- | --- |
-| 0 | Setup | The Hub reaches Ollama on the GPU node |
-| 1 | Each part works alone | Five smoke tests pass with timings |
-| 2 | First voice loop | Median reply under 2.5 s from end of speech |
-| 3 | HUD goes live | The orb follows a whole conversation in sync |
-| 4 | Tools + safety core | No change tool runs without a yes |
-| 5 | Memory | Recalls a fact days later, forgets on request |
-| 6 | Custom wake word + polish | 20/20 wakes, at most 1 false wake a day |
-| 7 | Phone | A silent phone rings at the set time |
-| 8 | Hardening + v1 release | A week of daily use, no injected tool call |
-
-## Repository layout
+<details>
+<summary><b>Repository layout</b></summary>
 
 ```
-hub/          voice loop, tools, memory, HUD server (ThinkPad)
-gpu-node/     speech-to-text service (Legion); Ollama runs alongside
-hud/          the 3D orb and, later, the dashboard
-tools/        FastMCP tool servers
-config/       config.example.toml (committed) · config.local.toml (ignored)
+hub/          voice loop, tools, memory, HUD server
+gpu-node/     speech-to-text service
+hud/          the orb and, later, the dashboard
+tools/        tool servers
+config/       example config (committed) · local config (ignored)
 docs/         architecture, decisions, security
-tests/smoke/  one script per component, each prints PASS and its timing
+tests/smoke/  one check per component
 ```
 
-## License
+</details>
 
-[MIT](LICENSE)
+---
+
+<div align="center">
+<sub>Named after Ada Lovelace. Built by <a href="https://github.com/Givemeboga">Gl1tch</a>. MIT licensed.</sub>
+</div>
