@@ -1,0 +1,53 @@
+# ---- personal config and secrets: never commit ----
+config/*.local.toml
+config/config.local.*
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ---- personal data Ada produces ----
+data/
+recordings/
+*.wav
+*.mp3
+*.flac
+*.ogg
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+chroma/
+audit/
+logs/
+*.log
+
+# ---- models and large files ----
+models/
+*.onnx
+*.tflite
+*.gguf
+*.bin
+*.safetensors
+*.pt
+
+# ---- python ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.python-version.local
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ---- editors and OS ----
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

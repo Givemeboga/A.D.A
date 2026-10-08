@@ -1,0 +1,44 @@
+# Secret scanning for Ada. Runs as a pre-commit hook and in CI.
+# Extends gitleaks' built-in rules (API keys, tokens, private keys, ...)
+# with rules for the personal data this project touches.
+
+title = "Ada gitleaks config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "personal-phone-assignment"
+description = "A phone number assigned to a phone/tel/number setting"
+regex = '''(?i)(?:phone|tel|mobile|msisdn|caller|callee|to_number|from_number)["'\s]*[:=]\s*["']?(\+?[1-9][0-9 ()\-]{7,18}[0-9])'''
+secretGroup = 1
+keywords = ["phone", "tel", "mobile", "msisdn", "caller", "callee", "_number"]
+
+[[rules]]
+id = "tunisian-mobile-number"
+description = "A Tunisian phone number in E.164 form"
+regex = '''\+216[ \-]?[2-9][0-9][ \-]?[0-9]{3}[ \-]?[0-9]{3}'''
+keywords = ["+216"]
+
+[[rules]]
+id = "e164-phone-number"
+description = "Any phone number in international E.164 form"
+regex = '''(?:^|[^\w+])(\+[1-9][0-9]{9,14})\b'''
+secretGroup = 1
+keywords = ["+"]
+
+[[rules]]
+id = "tailscale-key"
+description = "Tailscale auth, API or client key"
+regex = '''tskey-(?:auth|api|client|webhook)-[A-Za-z0-9]{6,}-[A-Za-z0-9]{10,}'''
+keywords = ["tskey-"]
+
+[[rules]]
+id = "ntfy-access-token"
+description = "ntfy access token"
+regex = '''\btk_[a-z0-9]{29}\b'''
+keywords = ["tk_"]
+
+[allowlist]
+description = "Placeholders used in config.example.toml and docs"
+regexes = ['''REPLACE_ME''', '''EXAMPLE''', '''\+?0[0 \-]{6,}''']

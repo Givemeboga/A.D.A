@@ -1,0 +1,27 @@
+# Install once per clone:  uv tool install pre-commit  &&  pre-commit install
+# Run on everything:       pre-commit run --all-files
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks            # blocks commits that contain secrets or phone numbers (.gitleaks.toml)
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: detect-private-key
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]  # models and recordings never belong in git
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: local
+    hooks:
+      - id: forbid-local-config
+        name: Never commit personal config or .env files
+        entry: Personal config and .env files stay on your machine. Unstage them.
+        language: fail
+        files: '(^|/)(config/.*\.local\..*|\.env(\..*)?)$'
+        exclude: '\.env\.example$'

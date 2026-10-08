@@ -1,0 +1,38 @@
+# Ada configuration — EXAMPLE VALUES ONLY.
+# Copy to config/config.local.toml (ignored by git) and put your real values there:
+#   cp config/config.example.toml config/config.local.toml
+# Never put real phone numbers, IPs, topics or tokens in this file.
+
+[owner]
+name = "REPLACE_ME"
+phone = "+000 00 000 000"        # alarms and calls go only to this number; the model never chooses it
+timezone = "Africa/Tunis"
+
+[gpu_node]                       # the Legion
+host = "REPLACE_ME"              # LAN or Tailscale address of the GPU node
+ollama_port = 11434
+stt_port = 8001
+model = "qwen3:8b"
+num_ctx = 4096                   # keep small: VRAM is shared with speech-to-text
+
+[stt]
+model = "distil-large-v3"
+language = "en"
+device = "cuda"                  # "cpu" if the GPU build does not support the card yet
+compute_type = "int8_float16"    # use "int8" on cpu
+
+[hub]                            # the ThinkPad
+hud_port = 8080
+wake_phrase = "REPLACE_ME"       # e.g. "ada stand by"
+sleep_phrase = "ada stand down"
+follow_up_seconds = 8
+voice = "af_heart"               # Kokoro voice: af_heart or bf_emma
+
+[ntfy]                           # phone alerts (Phase 7)
+server = "REPLACE_ME"
+topic = "REPLACE_ME"
+token = "REPLACE_ME"
+
+[security]
+confirm_timeout_seconds = 20     # no answer = no
+audit_log = "audit/audit.jsonl"
