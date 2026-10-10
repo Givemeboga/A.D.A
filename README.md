@@ -22,7 +22,7 @@ Private, local, and built with security at its core.
 
 You say her name, talk normally, and she answers out loud. She can set reminders, take notes, look things up and wake you in the morning, and she never changes anything without your "yes".
 
-Everything runs on two laptops at home. No subscription, no cloud model, and no audio ever leaves the house.
+Everything runs on your own devices: an always-on laptop at home, a gaming laptop for the heavy lifting, and your phone. No subscription, no cloud model, and no audio ever leaves your own machines.
 
 | | |
 | --- | --- |
@@ -39,6 +39,8 @@ Ada shows what she is doing through a living particle orb. Each state is a diffe
 
 Orange appears only when she is waiting for your approval, red only when something has failed. Open [`hud/orb.html`](hud/orb.html) in a browser to see it live; keys `1`–`6` switch state.
 
+On the desktop the orb lives in a small always-on-top pop-up in a corner of the screen. It appears when you say her name and fades out when the conversation ends. Click it to open the full dashboard.
+
 ## How she works
 
 ```mermaid
@@ -48,6 +50,7 @@ flowchart LR
         wake["Wake word"] --> loop["Voice loop"]
         loop --> voice["Voice"]
         loop <--> tools["Tools + memory"]
+        loop -. GPU node away .-> small["Fallback brain"]
         loop -.-> orb["Orb"]
     end
     subgraph gpu["GPU node · second laptop"]
@@ -62,6 +65,10 @@ flowchart LR
 
 The **Hub** listens for her name, manages the conversation and speaks the reply. The **GPU node** turns speech into text and runs the language model. Your **phone** receives alarms and works as a remote.
 
+The GPU node is also a laptop that leaves the house. Before each request the Hub checks whether it is reachable. If it is not, Ada answers with a smaller model on the Hub's own CPU, and the orb's core dims slightly to show it. Reminders and alarms never depend on the GPU node.
+
+All devices are connected over Tailscale. Nothing is exposed to the internet and no router ports are opened.
+
 <details>
 <summary><b>The stack</b></summary>
 
@@ -71,13 +78,16 @@ The **Hub** listens for her name, manages the conversation and speaks the reply.
 | Voice activity, turn taking | Silero VAD, Smart Turn |
 | Voice loop | Pipecat |
 | Speech-to-text | faster-whisper (`distil-large-v3`, English) |
-| Language model | Ollama with `qwen3:8b` |
+| Language model | Ollama with `qwen3:8b` on the GPU node |
+| Fallback brain | `qwen3:4b` / `qwen3:1.7b` on the Hub's CPU |
 | Text-to-speech | Kokoro |
 | Tools | FastMCP, strict allowlist |
 | Memory | SQLite + Chroma |
 | Scheduler | APScheduler |
 | HUD | FastAPI, WebSocket, Three.js |
-| Phone alerts | self-hosted ntfy over Tailscale |
+| Desktop orb | pywebview pop-up, pystray tray icon |
+| Phone alerts | self-hosted ntfy |
+| Network | Tailscale between all devices |
 
 Every choice and the reason behind it: [docs/decisions.md](docs/decisions.md) · Full architecture: [docs/architecture.md](docs/architecture.md)
 
@@ -101,8 +111,8 @@ Threat model and full rules: [docs/security.md](docs/security.md) · Reporting a
 
 - [ ] **Phase 0 · Setup** — repository, guardrails, machines talking *(in progress)*
 - [ ] **Phase 1 · Parts** — each component proven on its own
-- [ ] **Phase 2 · First words** — wake, listen, think, answer out loud
-- [ ] **Phase 3 · Face** — the orb follows Ada's real state
+- [ ] **Phase 2 · First words** — wake, listen, think, answer out loud; fallback brain
+- [ ] **Phase 3 · Face** — the orb follows Ada's real state; desktop pop-up and dashboard
 - [ ] **Phase 4 · Hands** — tools, confirmation and audit log
 - [ ] **Phase 5 · Memory** — remembers what you tell her, forgets on request
 - [ ] **Phase 6 · Her name** — custom wake phrase, natural interruptions
@@ -114,25 +124,28 @@ Later: French, calendar and email, Arabic, vision.
 <details>
 <summary><b>Getting started</b></summary>
 
-Requirements: Python 3.12, Git, and [Ollama](https://ollama.com) on the GPU node.
+Requirements: Git, [uv](https://docs.astral.sh/uv/) (it installs Python 3.12 for you), and [Ollama](https://ollama.com) on the GPU node.
 
 ```bash
 git clone https://github.com/Givemeboga/A.D.A.git
 cd A.D.A
 
+# Python 3.12 environment
+uv venv --python 3.12
+
 # turn on the guardrails before your first commit
-pip install pre-commit
+uv tool install pre-commit
 pre-commit install
 
-# your private config (ignored by git)
+# your private config (ignored by git; on Windows use "copy")
 cp config/config.example.toml config/config.local.toml
-# set gpu_node.host to the GPU node's address
+# set gpu_node.host to the GPU node's LAN or Tailscale address
 
 # on the GPU node
 ollama pull qwen3:8b
 
 # Phase 0 check, from the Hub
-python tests/smoke/check_ollama.py
+uv run python tests/smoke/check_ollama.py
 ```
 
 </details>
